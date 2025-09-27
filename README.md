@@ -59,6 +59,18 @@ supported. For input, unknown attributes will be collected
 at the `__unparsed` field. For output, attempting to use
 unimplemented features will generally result in `EINVAL`.
 
+## Building from Source
+
+```bash
+  node-gyp configure
+  node-gyp build
+```
+
+or
+
+```bash
+  node-gyp rebuild
+```
 
 ## Examples
 
