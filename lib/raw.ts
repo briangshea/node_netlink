@@ -41,7 +41,7 @@ export function generateLocalPort(): number {
 export interface RawNetlinkSocketOptions {
     /** Local port number to bind to */
     localPort?: number
-    /** Local groups mask, deprecated (default: 0, i.e. no groups) */
+    /** Local groups mask, deprecated (default: 0, i.e. no groups), BGS: Still used for netfilter */
     localGroups?: number
     /** Enable message peeking (default: true) */
     messagePeeking?: boolean
@@ -147,7 +147,7 @@ export class RawNetlinkSocket extends EventEmitter {
         super()
         let msgBuffer = 0 // by default, do message peeking
         if (options && options.messagePeeking === false)
-            msgBuffer = (options && options.msgBufferSize) || 4096
+            msgBuffer = (options && options.msgBufferSize) || 8192 // BGS: Increased size from 4096
         if (typeof protocol !== 'number' || typeof msgBuffer !== 'number')
             throw TypeError('Expected number')
         this.__native = new binding.NativeNetlink(protocol, msgBuffer, this._receive.bind(this), this._error.bind(this))
