@@ -42,19 +42,23 @@ export class NfNetlinkSocket extends EventEmitter {
 
     private _receive(omsg: NetlinkMessage[], rinfo: MessageInfo) {
         try {
-            this.emit('message', omsg.map(x => parseMessage(x.type, x.data)), rinfo)
+            /** 
+             * NOTE: netfilter will send SUBGROUP << 8 | msg_type as type, look at lower 8 bits only to
+             * decode the message type.
+             * 
+             * @see libnftnl src/common.c line 46
+             */
+            this.emit('message', omsg.map(x => parseMessage((x.type&nf.__MessageTypeMask), x.data)), rinfo)
         } catch (e) {
             this.emit('invalid', e, omsg, rinfo)
         }
     }
 
-    /** Do we need to expose addMembership? */
-    //addMembership(group: nf.MulticastGroups | keyof typeof nf.MulticastGroups) {
-    //    return this.socket.addMembership(typeof group === 'number' ? group : nf.MulticastGroups[group])
+    //addMembership(group: nf.Groups | keyof typeof nf.Groups) {
+    //    return this.socket.addMembership(typeof group === 'number' ? group : nf.Groups[group])
     //}
-
-    /** Do we need to expose dropMembership? */
-    //dropMembership(group: nf.MulticastGroups | keyof typeof nf.MulticastGroups) {
+    //
+    //dropMembership(group: nf.Groups | keyof typeof nf.Groups) {
     //    return this.socket
     //}
 
@@ -77,8 +81,8 @@ export class NfNetlinkSocket extends EventEmitter {
     }
 
     async newTableAction(
-        data: nf.NfGenMessage, 
-        attrs?: nf.NfTableAttributes, 
+        data: nf.GenMessage, 
+        attrs?: nf.TableAttributes, 
         options?: NetfilterSendOptions & RequestOptions
     ): Promise<nf.TableMessage[]> {
         const msg = new AttrStream()
@@ -90,6 +94,52 @@ export class NfNetlinkSocket extends EventEmitter {
             return x
         })
     }
+
+    async delTableAction(
+        data: nf.GenMessage, 
+        attrs?: nf.TableAttributes, 
+        options?: NetfilterSendOptions & RequestOptions
+    ): Promise<nf.TableMessage[]> {
+        const msg = new AttrStream()
+        nf.formatTableMessage({ kind: 'table', data, attrs: attrs || {} }, msg)
+        const omsg = await this.request(MessageType.DELTABLE, msg.bufs, options)
+        return omsg.map(x => {
+            if (x.kind !== 'table')
+                throw Error(`Unexpected ${x.kind} message received`)
+            return x
+        })
+    }
+
+    async newChainAction(
+        data: nf.GenMessage, 
+        attrs?: nf.ChainAttributes, 
+        options?: NetfilterSendOptions & RequestOptions
+    ): Promise<nf.ChainMessage[]> {
+        const msg = new AttrStream()
+        nf.formatChainMessage({ kind: 'chain', data, attrs: attrs || {} }, msg)
+        const omsg = await this.request(MessageType.NEWCHAIN, msg.bufs, options)
+        return omsg.map(x => {
+            if (x.kind !== 'chain')
+                throw Error(`Unexpected ${x.kind} message received`)
+            return x
+        })
+    }
+
+    async delChainAction(
+        data: nf.GenMessage, 
+        attrs?: nf.ChainAttributes, 
+        options?: NetfilterSendOptions & RequestOptions
+    ): Promise<nf.ChainMessage[]> {
+        const msg = new AttrStream()
+        nf.formatChainMessage({ kind: 'chain', data, attrs: attrs || {} }, msg)
+        const omsg = await this.request(MessageType.DELCHAIN, msg.bufs, options)
+        return omsg.map( x => {
+            if( x.kind !== 'chain')
+                throw Error(`Unexpected ${x.kind} message received`)
+            return x
+        })
+    }
+
 }
 
 export function createNfNetlink(
